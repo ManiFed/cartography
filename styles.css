@@ -1,12 +1,12 @@
 :root {
-  color-scheme: dark;
-  --bg: #05080d;
-  --panel: #0a0f17;
-  --line: #163647;
-  --line-strong: #1f9de0;
-  --node: #49b5ff;
-  --text: #d9e7ef;
-  --muted: #90a7b8;
+  color-scheme: light;
+  --bg: #f5f0e4;
+  --panel: rgba(253, 248, 236, 0.72);
+  --line: #907551;
+  --line-strong: #b65b2f;
+  --node: #1f5e67;
+  --text: #2f2a24;
+  --muted: #6b5b49;
 }
 
 * {
@@ -36,7 +36,7 @@ main {
   display: grid;
   grid-template-rows: auto 1fr;
   padding: 1.25rem clamp(1rem, 3vw, 3rem) 2.5rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--line), transparent 35%);
+  border-bottom: 1px solid color-mix(in srgb, var(--line), transparent 45%);
 }
 
 #grid-canvas {
@@ -130,7 +130,7 @@ h1 {
 }
 
 .button-primary {
-  background: color-mix(in srgb, var(--line-strong), transparent 87%);
+  background: color-mix(in srgb, var(--line-strong), transparent 86%);
 }
 
 .products {
