@@ -2,13 +2,13 @@ const canvas = document.getElementById("grid-canvas");
 const context = canvas.getContext("2d");
 const pointer = { x: 0, y: 0 };
 
-const features = [];
-const contourBands = [];
+const blobs = [];
+const contourFields = [];
 const routes = [];
-const oranges = [];
+const markers = [];
 
-const animationDuration = 18000;
-const basePadding = 32;
+const animationDuration = 15000;
+const basePadding = 56;
 
 let startTime = performance.now();
 
@@ -16,10 +16,13 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-
 function smoothstep(edge0, edge1, x) {
   const t = clamp((x - edge0) / (edge1 - edge0), 0, 1);
   return t * t * (3 - 2 * t);
+}
+
+function randomRange(min, max) {
+  return min + Math.random() * (max - min);
 }
 
 function resize() {
@@ -31,153 +34,140 @@ function resize() {
   buildMapGeometry();
 }
 
-function randomRange(min, max) {
-  return min + Math.random() * (max - min);
-}
-
 function buildMapGeometry() {
-  features.length = 0;
-  contourBands.length = 0;
+  blobs.length = 0;
+  contourFields.length = 0;
   routes.length = 0;
-  oranges.length = 0;
+  markers.length = 0;
 
   const w = window.innerWidth;
   const h = window.innerHeight;
 
-  const featureCount = 11;
-
-  for (let i = 0; i < featureCount; i += 1) {
+  const blobCount = 6;
+  for (let i = 0; i < blobCount; i += 1) {
     const cx = randomRange(basePadding, w - basePadding);
     const cy = randomRange(basePadding, h - basePadding);
+    const pointCount = 10;
+    const radiusBase = randomRange(120, Math.min(w, h) * 0.24);
     const points = [];
-    const radiusBase = randomRange(65, Math.min(w, h) * 0.26);
-    const pointCount = 14;
 
     for (let p = 0; p < pointCount; p += 1) {
       const angle = (p / pointCount) * Math.PI * 2;
-      const radius = radiusBase * randomRange(0.55, 1.1);
+      const radius = radiusBase * randomRange(0.72, 1.12);
       points.push({
         x: cx + Math.cos(angle) * radius,
         y: cy + Math.sin(angle) * radius,
       });
     }
 
-    const hueGroup = i % 4;
     const palette = [
-      { fill: "hsla(27, 74%, 55%, 0.26)", edge: "rgba(120,88,54,0.46)" },
-      { fill: "hsla(13, 70%, 51%, 0.23)", edge: "rgba(125,72,43,0.42)" },
-      { fill: "hsla(188, 42%, 43%, 0.22)", edge: "rgba(39,88,93,0.36)" },
-      { fill: "hsla(45, 60%, 62%, 0.24)", edge: "rgba(118,103,67,0.38)" },
-    ][hueGroup];
+      { fill: "hsla(26, 72%, 62%, 0.21)", edge: "rgba(120,90,57,0.26)" },
+      { fill: "hsla(193, 32%, 56%, 0.19)", edge: "rgba(59,95,99,0.24)" },
+      { fill: "hsla(42, 58%, 64%, 0.20)", edge: "rgba(124,109,73,0.24)" },
+      { fill: "hsla(18, 68%, 63%, 0.18)", edge: "rgba(126,74,49,0.23)" },
+    ][i % 4];
 
-    features.push({
-      cx,
-      cy,
+    blobs.push({
       points,
       fill: palette.fill,
       edge: palette.edge,
-      delay: i * 0.06,
-      grainSeed: Math.random() * 999,
+      delay: i * 0.1,
+      seed: Math.random() * 1000,
     });
   }
 
-  const contourCount = 10;
+  const contourCount = 5;
   for (let i = 0; i < contourCount; i += 1) {
-    const ringX = randomRange(w * 0.15, w * 0.85);
-    const ringY = randomRange(h * 0.15, h * 0.85);
-    const rings = [];
-    const base = randomRange(45, 110);
-
-    for (let r = 0; r < 6; r += 1) {
-      rings.push(base + r * randomRange(8, 16));
-    }
-
-    contourBands.push({
-      x: ringX,
-      y: ringY,
-      rings,
-      drift: randomRange(-0.7, 0.7),
-      delay: 0.18 + i * 0.035,
+    contourFields.push({
+      x: randomRange(w * 0.16, w * 0.84),
+      y: randomRange(h * 0.16, h * 0.84),
+      rx: randomRange(58, 96),
+      ry: randomRange(42, 78),
+      turns: 5,
+      rotation: randomRange(-0.8, 0.8),
+      delay: 0.25 + i * 0.08,
     });
   }
 
-  const routeCount = 32;
+  const routeCount = 12;
   for (let i = 0; i < routeCount; i += 1) {
     routes.push({
-      startX: randomRange(0, w),
-      startY: randomRange(0, h),
-      cpX: randomRange(w * 0.1, w * 0.9),
-      cpY: randomRange(h * 0.1, h * 0.9),
-      endX: randomRange(0, w),
-      endY: randomRange(0, h),
-      delay: 0.3 + i * 0.012,
-      width: randomRange(0.7, 1.7),
+      sx: randomRange(0, w),
+      sy: randomRange(0, h),
+      c1x: randomRange(w * 0.1, w * 0.9),
+      c1y: randomRange(h * 0.1, h * 0.9),
+      c2x: randomRange(w * 0.1, w * 0.9),
+      c2y: randomRange(h * 0.1, h * 0.9),
+      ex: randomRange(0, w),
+      ey: randomRange(0, h),
+      delay: 0.35 + i * 0.03,
     });
   }
 
-  const orbCount = 11;
-  for (let i = 0; i < orbCount; i += 1) {
-    oranges.push({
+  const markerCount = 6;
+  for (let i = 0; i < markerCount; i += 1) {
+    markers.push({
       x: randomRange(basePadding, w - basePadding),
       y: randomRange(basePadding, h - basePadding),
-      radius: randomRange(8, 21),
-      pulse: Math.random() * Math.PI * 2,
-      delay: 0.52 + i * 0.028,
+      radius: randomRange(10, 20),
+      phase: Math.random() * Math.PI * 2,
+      delay: 0.6 + i * 0.05,
     });
   }
 }
 
-function drawPaperBackground(progress) {
+function drawPaperBackground() {
   const w = window.innerWidth;
   const h = window.innerHeight;
 
   const bg = context.createLinearGradient(0, 0, w, h);
-  bg.addColorStop(0, "#f8f4e8");
-  bg.addColorStop(0.55, "#efe6d3");
-  bg.addColorStop(1, "#e6d9bd");
-
+  bg.addColorStop(0, "#f8f3e5");
+  bg.addColorStop(0.5, "#efe7d4");
+  bg.addColorStop(1, "#e7dbc2");
   context.fillStyle = bg;
   context.fillRect(0, 0, w, h);
 
   const vignette = context.createRadialGradient(
-    w * 0.52,
-    h * 0.44,
-    Math.min(w, h) * 0.06,
+    w * 0.5,
+    h * 0.45,
+    Math.min(w, h) * 0.12,
     w * 0.5,
     h * 0.5,
-    Math.max(w, h) * 0.72,
+    Math.max(w, h) * 0.74,
   );
-
-  vignette.addColorStop(0, "rgba(255,252,244,0)");
-  vignette.addColorStop(1, `rgba(133, 96, 54, ${0.2 + progress * 0.1})`);
-
+  vignette.addColorStop(0, "rgba(255,255,245,0)");
+  vignette.addColorStop(1, "rgba(126,95,58,0.19)");
   context.fillStyle = vignette;
   context.fillRect(0, 0, w, h);
 
-  for (let i = 0; i < 170; i += 1) {
-    const x = (i * 67.31) % w;
-    const y = (i * 113.79) % h;
-    const speck = 0.02 + ((i * 37) % 12) * 0.0025;
-
-    context.fillStyle = `rgba(90,64,40,${speck})`;
-    context.fillRect(x, y, 1.1, 1.1);
+  for (let i = 0; i < 120; i += 1) {
+    const x = (i * 77.13) % w;
+    const y = (i * 121.91) % h;
+    context.fillStyle = `rgba(90,64,40,${0.015 + (i % 8) * 0.003})`;
+    context.fillRect(x, y, 1, 1);
   }
 }
 
-function drawPolygon(points, jitter) {
+function drawSmoothBlob(points, jitter) {
+  const adjusted = points.map((point, i) => ({
+    x: point.x + Math.sin(jitter + i * 0.7) * 1.25,
+    y: point.y + Math.cos(jitter + i * 0.8) * 1.25,
+  }));
+
   context.beginPath();
+  const first = adjusted[0];
+  const second = adjusted[1];
+  const startX = (first.x + second.x) / 2;
+  const startY = (first.y + second.y) / 2;
+  context.moveTo(startX, startY);
 
-  points.forEach((point, index) => {
-    const nx = point.x + Math.sin(index * 0.9 + jitter) * 2.1;
-    const ny = point.y + Math.cos(index * 1.1 + jitter) * 2.1;
-
-    if (index === 0) {
-      context.moveTo(nx, ny);
-      return;
-    }
-
-    context.lineTo(nx, ny);
-  });
+  for (let i = 1; i <= adjusted.length; i += 1) {
+    const curr = adjusted[i % adjusted.length];
+    const next = adjusted[(i + 1) % adjusted.length];
+    const midX = (curr.x + next.x) / 2;
+    const midY = (curr.y + next.y) / 2;
+    context.quadraticCurveTo(curr.x, curr.y, midX, midY);
+  }
 
   context.closePath();
 }
@@ -185,64 +175,54 @@ function drawPolygon(points, jitter) {
 function draw(timestamp) {
   const w = window.innerWidth;
   const h = window.innerHeight;
-
-  const elapsed = (timestamp - startTime) % animationDuration;
-  const progress = elapsed / animationDuration;
+  const rawProgress = (timestamp - startTime) / animationDuration;
+  const progress = clamp(rawProgress, 0, 1);
 
   context.clearRect(0, 0, w, h);
 
-  const parallaxX = (pointer.x - w / 2) * 0.009;
-  const parallaxY = (pointer.y - h / 2) * 0.009;
+  const parallaxX = (pointer.x - w / 2) * 0.006;
+  const parallaxY = (pointer.y - h / 2) * 0.006;
 
-  drawPaperBackground(progress);
+  drawPaperBackground();
 
   context.save();
   context.translate(parallaxX, parallaxY);
 
-  for (const feature of features) {
-    const featureProgress = smoothstep(feature.delay, feature.delay + 0.28, progress);
-    if (featureProgress <= 0) {
-      continue;
-    }
+  for (const blob of blobs) {
+    const reveal = smoothstep(blob.delay, blob.delay + 0.32, progress);
+    if (reveal <= 0) continue;
 
     context.save();
-    context.globalAlpha = featureProgress;
-
-    drawPolygon(feature.points, timestamp * 0.0002 + feature.grainSeed);
-
-    context.fillStyle = feature.fill;
+    context.globalAlpha = reveal;
+    drawSmoothBlob(blob.points, blob.seed + timestamp * 0.00012);
+    context.fillStyle = blob.fill;
     context.fill();
-
-    context.strokeStyle = feature.edge;
-    context.lineWidth = 1.1;
+    context.lineWidth = 0.9;
+    context.strokeStyle = blob.edge;
     context.stroke();
-
-    for (let i = 0; i < 5; i += 1) {
-      context.globalAlpha = featureProgress * 0.08;
-      context.strokeStyle = "rgba(70,56,38,0.6)";
-      context.lineWidth = 0.5;
-      drawPolygon(feature.points, feature.grainSeed + i * 0.6 + timestamp * 0.00015);
-      context.stroke();
-    }
-
     context.restore();
   }
 
-  for (const contour of contourBands) {
-    const contourProgress = smoothstep(contour.delay, contour.delay + 0.22, progress);
-    if (contourProgress <= 0) {
-      continue;
-    }
+  for (const field of contourFields) {
+    const reveal = smoothstep(field.delay, field.delay + 0.2, progress);
+    if (reveal <= 0) continue;
 
     context.save();
-    context.globalAlpha = contourProgress * 0.7;
-    context.strokeStyle = "rgba(66, 92, 86, 0.55)";
+    context.globalAlpha = reveal * 0.62;
+    context.strokeStyle = "rgba(82, 106, 108, 0.46)";
 
-    for (let i = 0; i < contour.rings.length; i += 1) {
-      const radius = contour.rings[i] + Math.sin(timestamp * 0.00035 + contour.drift * i) * 1.5;
-      context.lineWidth = i % 3 === 0 ? 1.2 : 0.8;
+    for (let i = 0; i < field.turns; i += 1) {
       context.beginPath();
-      context.ellipse(contour.x, contour.y, radius, radius * 0.76, contour.drift * 0.7, 0, Math.PI * 2);
+      context.lineWidth = 0.85;
+      context.ellipse(
+        field.x,
+        field.y,
+        field.rx + i * 10,
+        field.ry + i * 8,
+        field.rotation,
+        0,
+        Math.PI * 2,
+      );
       context.stroke();
     }
 
@@ -250,52 +230,46 @@ function draw(timestamp) {
   }
 
   for (const route of routes) {
-    const routeProgress = smoothstep(route.delay, route.delay + 0.17, progress);
-    if (routeProgress <= 0) {
-      continue;
-    }
+    const reveal = smoothstep(route.delay, route.delay + 0.18, progress);
+    if (reveal <= 0) continue;
 
     context.save();
-    context.globalAlpha = routeProgress;
-    context.lineWidth = route.width;
-    context.setLineDash([9, 5, 3, 6]);
-    context.lineDashOffset = -timestamp * 0.02;
-    context.strokeStyle = "rgba(59, 83, 99, 0.52)";
-
+    context.globalAlpha = reveal * 0.6;
+    context.strokeStyle = "rgba(73, 97, 113, 0.48)";
+    context.lineWidth = 1;
+    context.setLineDash([6, 6]);
     context.beginPath();
-    context.moveTo(route.startX, route.startY);
-    context.quadraticCurveTo(route.cpX, route.cpY, route.endX, route.endY);
+    context.moveTo(route.sx, route.sy);
+    context.bezierCurveTo(route.c1x, route.c1y, route.c2x, route.c2y, route.ex, route.ey);
     context.stroke();
-
     context.restore();
   }
 
-  for (const orb of oranges) {
-    const orbProgress = smoothstep(orb.delay, orb.delay + 0.12, progress);
-    if (orbProgress <= 0) {
-      continue;
-    }
+  for (const marker of markers) {
+    const reveal = smoothstep(marker.delay, marker.delay + 0.13, progress);
+    if (reveal <= 0) continue;
 
-    const pulse = 1 + Math.sin(timestamp * 0.0017 + orb.pulse) * 0.08;
-    const radius = orb.radius * pulse;
+    const pulse = 1 + Math.sin(timestamp * 0.0014 + marker.phase) * 0.05;
+    const radius = marker.radius * pulse;
 
     context.save();
-    context.globalAlpha = orbProgress * 0.9;
+    context.globalAlpha = reveal * 0.9;
+    const g = context.createRadialGradient(
+      marker.x - radius * 0.35,
+      marker.y - radius * 0.35,
+      radius * 0.2,
+      marker.x,
+      marker.y,
+      radius,
+    );
+    g.addColorStop(0, "rgba(255,210,126,0.95)");
+    g.addColorStop(0.7, "rgba(236,138,60,0.84)");
+    g.addColorStop(1, "rgba(175,66,38,0.5)");
 
-    const orbGradient = context.createRadialGradient(orb.x - radius * 0.35, orb.y - radius * 0.35, radius * 0.2, orb.x, orb.y, radius);
-    orbGradient.addColorStop(0, "rgba(255, 208, 120, 0.95)");
-    orbGradient.addColorStop(0.65, "rgba(235, 132, 58, 0.88)");
-    orbGradient.addColorStop(1, "rgba(169, 59, 36, 0.56)");
-
-    context.fillStyle = orbGradient;
+    context.fillStyle = g;
     context.beginPath();
-    context.arc(orb.x, orb.y, radius, 0, Math.PI * 2);
+    context.arc(marker.x, marker.y, radius, 0, Math.PI * 2);
     context.fill();
-
-    context.strokeStyle = "rgba(255, 233, 178, 0.5)";
-    context.lineWidth = 0.85;
-    context.stroke();
-
     context.restore();
   }
 
